@@ -231,6 +231,9 @@ class Player:
             self.vel_y = 0
             self.on_ground = True
 
+        # Clamp to level boundaries
+        if self.x < 0:
+            self.x = 0
         if self.max_x is not None and self.x + self.width > self.max_x:
             self.x = self.max_x - self.width
             
@@ -796,10 +799,13 @@ def create_level(level_num):
     else:
         last_platform = max(platforms, key=lambda p: p.data['x'] + p.data['width'])
 
-    level_end_x = last_platform.data['x'] + last_platform.data['width']
-    goal_x = level_end_x - 40
+    platform_end_x = last_platform.data['x'] + last_platform.data['width']
+    goal_x = platform_end_x - 40
     goal_y = max(0, last_platform.data['y'] - 48)
     goal = Goal(goal_x, goal_y)
+    
+    # Set level boundary 200px after the goal ends
+    level_end_x = goal_x + goal.width + 200
     
     return platforms, obstacles, buildings, goal, level_end_x
 
