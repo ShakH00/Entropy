@@ -183,6 +183,7 @@ class Player:
         self.animation_frame = 0
         self.animation_timer = 0
         self.animation_speed = 150
+        self.max_x = None
 
         if self.sprites.get("stand_right"):
             self.width = self.sprites["stand_right"].get_width()
@@ -229,6 +230,9 @@ class Player:
             self.y = HEIGHT - 50 - self.height
             self.vel_y = 0
             self.on_ground = True
+
+        if self.max_x is not None and self.x + self.width > self.max_x:
+            self.x = self.max_x - self.width
             
     def jump(self):
         if self.on_ground:
@@ -785,10 +789,19 @@ def create_level(level_num):
     # Sort buildings by layer for proper rendering
     buildings.sort(key=lambda b: b.layer)
     
-    goal = Goal(distance, HEIGHT - 98)
-    
     platforms = ensure_playable_platforms(platforms)
-    return platforms, obstacles, buildings, goal
+    playable_platforms = [p for p in platforms if p.data['height'] != 50]
+    if playable_platforms:
+        last_platform = max(playable_platforms, key=lambda p: p.data['x'] + p.data['width'])
+    else:
+        last_platform = max(platforms, key=lambda p: p.data['x'] + p.data['width'])
+
+    level_end_x = last_platform.data['x'] + last_platform.data['width']
+    goal_x = level_end_x - 40
+    goal_y = max(0, last_platform.data['y'] - 48)
+    goal = Goal(goal_x, goal_y)
+    
+    return platforms, obstacles, buildings, goal, level_end_x
 
 def draw_loading_screen(screen, font, quote):
     screen.fill(COLORS['bg_dark'])
@@ -964,7 +977,7 @@ def main():
     # Load images
     title_image = None
     try:
-        for path in ['/mnt/user-data/uploads/title.png', 'title.png', './title.png']:
+        for path in ['graphics/title.png', './graphics/title.png', 'title.png']:
             if os.path.exists(path):
                 title_image = pygame.image.load(path).convert_alpha()
                 if title_image.get_width() > 600:
@@ -977,7 +990,7 @@ def main():
 
     sub_image = None
     try:
-        for path in ['/mnt/user-data/uploads/subtxt.png', 'subtxt.png', './subtxt.png']:
+        for path in ['graphics/subtxt.png', './graphics/subtxt.png', 'subtxt.png']:
             if os.path.exists(path):
                 sub_image = pygame.image.load(path).convert_alpha()
                 if sub_image.get_width() > 500:
@@ -992,7 +1005,7 @@ def main():
     star_large = None
     star_large_dim = None
     try:
-        for path in ['/mnt/user-data/uploads/star.png', 'star.png', './star.png']:
+        for path in ['graphics/star.png', './graphics/star.png', 'star.png']:
             if os.path.exists(path):
                 star_image = pygame.image.load(path).convert_alpha()
                 star_small = pygame.transform.scale(star_image, (16, 16))
@@ -1006,14 +1019,14 @@ def main():
     player_sprites = {}
     try:
         sprite_gifs = {
-            "stand_left": "oldManStandLeft.gif",
-            "stand_right": "oldManStandRight.gif",
-            "walk_left": "oldManWalkLeft.gif",
-            "walk_right": "oldManWalkRight.gif",
+            "stand_left": "graphics/oldManStandLeft.gif",
+            "stand_right": "graphics/oldManStandRight.gif",
+            "walk_left": "graphics/oldManWalkLeft.gif",
+            "walk_right": "graphics/oldManWalkRight.gif",
         }
         
         for key, filename in sprite_gifs.items():
-            for path in [filename, f'./{filename}', f'/mnt/user-data/uploads/{filename}']:
+            for path in [filename, f'./{filename}']:
                 if os.path.exists(path):
                     frames = load_gif_frames(path, (PLAYER_SIZE, PLAYER_SIZE))
                     if frames:
@@ -1097,13 +1110,14 @@ def main():
                     elif state == GAME_OVER:
                         if replay_button.check_click(mouse_pos):
                             player = Player(50, HEIGHT - 100, player_sprites)
-                            platforms, obstacles, buildings, goal = create_level(current_level)
+                            platforms, obstacles, buildings, goal, level_end_x = create_level(current_level)
                             camera = Camera()
                             death_chunks = []
                             start_time = pygame.time.get_ticks()
                             final_time = 0
                             game_over = False
                             won = False
+                            player.max_x = level_end_x
                             state = PLAYING
                         elif levels_button.check_click(mouse_pos):
                             level_buttons = create_level_buttons()
@@ -1122,13 +1136,14 @@ def main():
             
             if pygame.time.get_ticks() - loading_start > 2000:
                 player = Player(50, HEIGHT - 100, player_sprites)
-                platforms, obstacles, buildings, goal = create_level(current_level)
+                platforms, obstacles, buildings, goal, level_end_x = create_level(current_level)
                 camera = Camera()
                 death_chunks = []
                 start_time = pygame.time.get_ticks()
                 final_time = 0
                 game_over = False
                 won = False
+                player.max_x = level_end_x
                 state = PLAYING
             
         elif state == LEVEL_SELECT:
